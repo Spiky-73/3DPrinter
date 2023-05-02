@@ -1,0 +1,6 @@
+{
+    "board": "arduino:avr:uno",
+    "programmer": "avrispmkii",
+    "sketch": "asservisement\\asservisement.ino",
+    "port": "COM3"
+}
