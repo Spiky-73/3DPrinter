@@ -1,4 +1,5 @@
 {
+    "board": "arduino:avr:uno",
     "sketch": "asservisement\\asservisement.ino",
-    "board": "arduino:avr:uno"
+    "output": "build"
 }
