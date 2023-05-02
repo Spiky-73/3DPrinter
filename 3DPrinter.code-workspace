@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "MotherBoard",
+		},
+		{
+			"path": "PID",
+		}
+		
+	],
+	"settings": {
+		"extension-profiles.activeProfiles": [
+			"Always On",
+			"GitHub",
+			"Rust",
+			"C++ (Arduino)"
+		]
+	}
+}
