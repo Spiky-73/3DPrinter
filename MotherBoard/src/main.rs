@@ -1,12 +1,7 @@
 mod gcode_manager;
-mod serial;
-
 
 fn main() {
-    /*
-    activation de la boucle de reception wifi
-    init de la connection serie imprimante (reset de positions...)
-    */
+    gcode_manager::run_tests();
 }
 
 /*

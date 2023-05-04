@@ -1,34 +1,54 @@
 mod gcode;
 
-struct GcodeManager{
-    pub Printing: bool
-    _gcode: Vec<gcode::GCode>
-}
+// struct GcodeManager{
+//     pub Printing: bool,
+//     _gcode: Vec<gcode::GCode>
+// }
 
-impl GcodeManager {
-    pub fn new() -> Self{
-        GcodeManager{ _gcode: Vec::new() }
-    }
+// impl GcodeManager {
+//     pub fn new() -> Self{
+//         GcodeManager{ _gcode: Vec::new() }
+//     }
 
-    pub fn load_gcode(&mut self, code: &str){
-        self._gcode.clear();
-        for line in code.split('\n'){
-            self._gcode.push(gcode::parse(line));
-        }
-    }
+//     pub fn load_gcode(&mut self, code: &str){
+//         self._gcode.clear();
+//         for line in code.split('\n'){
+//             self._gcode.push(gcode::parse(line));
+//         }
+//     }
     
-    pub async fn start_printing(&mut self){
-        if(self._gcode.len() == 0){
-            print!("No gcode to print, please load gcode fisrt.");
-            return;
-        }
-        // send the x fist intruction to be buffered
-    }
+//     pub async fn start_printing(&mut self){
+//         if(self._gcode.len() == 0){
+//             print!("No gcode to print, please load gcode fisrt.");
+//             return;
+//         }
+//         // send the x fist intruction to be buffered
+//     }
 
-    pub fn on_command_end(&mut self){
-        if(self._gcode.len() > 0){
+//     pub fn on_command_end(&mut self){
+//         if(self._gcode.len() > 0){
 
-        }
+//         }
+//     }
+// }
+
+pub fn run_tests() {
+    let gcodes_tests = [
+        "G1 X20 Y-.5 ; a comment",
+        "G1 X",
+        "G1",
+
+        // Errors
+        "4 X20",
+        "H1 X20 Y520",
+        "; a comment",
+        "", // Panic
+
+    ];
+
+    for test in gcodes_tests{
+        let code = test.parse::<gcode::GCode>();
+        println!("{code:?}");
     }
 }
 
