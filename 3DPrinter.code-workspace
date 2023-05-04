@@ -15,5 +15,9 @@
 			"Rust",
 			"C++ (Arduino)"
 		],
+		"rust-analyzer.linkedProjects": [
+			".\\Cargo.toml",
+			".\\Cargo.toml"
+		],
 	}
 }

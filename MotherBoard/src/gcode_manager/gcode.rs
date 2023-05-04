@@ -1,19 +1,34 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     G(u16),
     M(u16)
 }
 
-impl Command {
-    pub fn new(command: &str) -> Self {
-        let id: u16 = command[1..].parse().unwrap();
-        match command.chars().nth(0) {
-            Some('G') => Command::G(id),
-            Some('M') => Command::M(id),
-            _ => panic!("Unknwon command {command}")
+#[derive(Debug, PartialEq, Eq)]
+struct ParseCommandError;
+
+impl FromStr for Command {
+    type Err = ParseCommandError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (code, id) = s.to_uppercase().split_at(1);
+        let id: u16 = id.parse()?.or(Err(ParseCommandError));
+
+        match code {
+            "G" => Ok(Command::G(id)),
+            "M" => Ok(Command::M(id)),
+            _ => Err(ParseCommandError)
         }
     }
+}
+
+pub enum Arg {
+    X(f32), Y(f32), Z(f32),
+    E(f32), F(f32), S(f32),
+    NotImplementedYet(String)
 }
 
 pub struct GCode {
@@ -21,11 +36,22 @@ pub struct GCode {
     args: HashMap<char, f32>
 }
 
-pub fn parse(line: &str) -> GCode {
-    let mut line: Vec<&str> = line.split(';').nth(0).unwrap().split_whitespace().collect();
+pub fn parse_line(line: &str) -> GCode {
+    let (command, args) = line.split(';').nth(0).unwrap().split_once(" ").unwrap();
+    
+    let command = Command::new(command);
 
-    let command = Command::new(line.remove(0));    
-    let mut args = line.iter().map(|l| (l.chars().nth(0).unwrap(), l[1..].parse().unwrap())).collect::<HashMap<char, f32>>();
+    let args: Vec<(&str, &str)> = args
+        .split_whitespace()
+        .map(|arg| (arg.chars().next().unwrap(), arg[1..].parse().unwrap()))
+        .collect();
+
+    let args = args
+        .iter()
+        .map(|(letter, number)| ())
+    let args = args.iter().map
+
+
     GCode { command, args }
 }
 
