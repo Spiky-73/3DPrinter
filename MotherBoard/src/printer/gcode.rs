@@ -33,12 +33,6 @@ impl FromStr for Field {
     }
 }
 
-impl From<Field> for (char, Option<f32>) {
-    fn from(value: Field) -> Self {
-        (value.letter, value.number)
-    }
-}
-
 #[derive(Debug)]
 pub struct Instruction {
     pub command: Command,
@@ -53,7 +47,7 @@ impl FromStr for Instruction {
         let (command, params) = s.split(';').nth(0).ok_or(ParseGcodeError)?.split_once(" ").unwrap_or((s, ""));
             
         let command: Field = command.parse().map_err(|_| ParseGcodeError)?;
-        let number = command.number.ok_or(ParseGcodeError)? as u16; // TODO G7.5 error
+        let number = command.number.ok_or(ParseGcodeError)? as u16;
         let command = match command.letter {
             'G' => Command::G(number),
             'M' => Command::M(number),
