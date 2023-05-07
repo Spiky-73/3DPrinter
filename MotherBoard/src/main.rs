@@ -1,6 +1,7 @@
 mod printer;
 
 fn main() {
+
     printer::run_gcode_tests();
     
     /*
@@ -11,7 +12,8 @@ fn main() {
         - print start / stop / pause
         - ...
     */
-    printer::init();
+
+    // printer::get().initialize();
 
     /*
     (loop)
