@@ -1,4 +1,6 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
+
+use async_std::task;
 
 mod gcode;
 mod serial;
@@ -10,13 +12,17 @@ impl Printer {
     pub async fn initialize(&mut self){
         self.start_home();
 
-        while self.state == State::Initializing {}
+        while self.state == State::Initializing {
+            task::sleep(Duration::from_secs(2)).await;
+        }
         
     }
     
     pub async fn print(&mut self){
         self.start_print();
-        while self.state == State::Printing {}
+        while self.state == State::Printing {
+            task::sleep(Duration::from_secs(2)).await;
+        }
     }
 
     pub fn start_home(&mut self) {
@@ -24,8 +30,7 @@ impl Printer {
             State::Initializing => return,
             State::Idle => {
                 self.state = State::Initializing;
-                self.instructions.clear()
-
+                self.instructions.clear();
                 // start the serial listenning
                 // reset the sensor and actuators
             }
