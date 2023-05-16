@@ -9,7 +9,7 @@ fn main() {
     block_on(initialize());
 
     loop {
-        // TODO
+        // TODO impl
         // broadcast printer info via wifi 
         //     - print status
         //     - sensor status    
