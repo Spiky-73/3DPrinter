@@ -1,6 +1,4 @@
 use std::collections::VecDeque;
-use std::thread;
-
 
 mod gcode;
 mod serial;
@@ -10,11 +8,15 @@ pub const BUFFERED_INSTRUCTIONS: u32 = 5;
 impl Printer {
 
     pub async fn initialize(&mut self){
-        // TODO
-    }
+        self.start_init();
 
+        while self.state == State::Initializing {}
+        
+    }
+    
     pub async fn print(&mut self){
-        // TODO
+        self.start_print();
+        while self.state == State::Printing {}
     }
 
     pub fn start_init(&mut self) {
@@ -78,10 +80,10 @@ pub struct Printer {
 }
 
 pub fn get() -> &'static mut Printer {
-    return unsafe { &mut instance }
+    return unsafe { &mut INSTANCE }
 }
 
-static mut instance: Printer = Printer { state:State::Initializing, instructions:VecDeque::new() };
+static mut INSTANCE: Printer = Printer { state:State::Initializing, instructions:VecDeque::new() };
 
 #[derive(PartialEq, Eq)]
 enum State {
