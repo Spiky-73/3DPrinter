@@ -68,7 +68,7 @@ impl Printer {
     }
 
     fn send_instruction(&mut self, instruction: gcode::Instruction){
-        // TODO
+        // TODO impl
         // parses the instruction 
         // send the data on the serial
     }
