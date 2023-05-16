@@ -8,7 +8,7 @@ pub const BUFFERED_INSTRUCTIONS: u32 = 5;
 impl Printer {
 
     pub async fn initialize(&mut self){
-        self.start_init();
+        self.start_home();
 
         while self.state == State::Initializing {}
         
@@ -19,7 +19,7 @@ impl Printer {
         while self.state == State::Printing {}
     }
 
-    pub fn start_init(&mut self) {
+    pub fn start_home(&mut self) {
         match self.state {
             State::Initializing => return,
             State::Idle => {
