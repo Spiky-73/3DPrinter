@@ -7,8 +7,4 @@ edition = "2021"
 
 [dependencies]
 serialport = "4.2.0"
-futures = "0.3.28"
-
-[dependencies.async-std]
-version = "1.12"
-features = ["attributes"]
+tokio = { version = "1.28.1", features = ["full"]}
