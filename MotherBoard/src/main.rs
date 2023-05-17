@@ -1,12 +1,14 @@
-use futures::{join, executor::block_on};
+use tokio::join;
 
 mod printer;
 mod network;
 
-fn main() {
+#[tokio::main]
+async fn main() {
+    
     // printer::run_gcode_tests();
 
-    block_on(initialize());
+    join!(printer::get().initialize(), network::get().initialize());
 
     loop {
         // TODO impl
@@ -14,8 +16,4 @@ fn main() {
         //     - print status
         //     - sensor status    
     }
-}
-
-async fn initialize(){
-    join!(printer::get().initialize(), network::get().initialize());
 }
