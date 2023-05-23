@@ -85,12 +85,56 @@ G4: Pause
 G21: set units to mm
 
 G28: return to home
-    - X, Y, Z: home specific axis
+    - X Y Z: home specific axis
 
 G80: bed level
 
 G90: set to abs positioning
 
 G92: define position
-    - X, Y, Z, E
+    - X Y Z E
+
+M73: Set/Get build percentage
+ - Pn Rn Q S (C D) 
+
+M83: Set extruder to relative mode
+
+M84: Stop idle hold
+
+M93: Send axis_steps_per_unit
+ - ???
+
+M104: Set Extruder Temperature
+ - C Dn Sn rN
+
+M106: Fan On
+
+M107: Fan Off
+
+M109: Set Extruder Temperature and Wait
+
+M115: Get Firmware Version and Capabilities
+
+M140: Set Bed Temperature (Fast)
+
+M190: Wait for bed temperature to reach target temp
+
+M201: Set max acceleration
+
+M203: Set maximum feedrate (Firmware dependant)
+
+M203: Set maximum feedrate (Firmware dependant)
+ - Pn Tn
+
+M205: Advanced settings (Firmware dependant)
+
+M221: Set extrude factor override percentage
+ - Sn Dn
+
+M862: Print checking
+
+M907: Set digital trimpot motor
+
+M900 Set Linear Advance Scaling Factors
+ - Kn Rn Wn Hn Dn
 */

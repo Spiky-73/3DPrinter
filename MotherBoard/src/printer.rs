@@ -6,8 +6,10 @@ mod gcode;
 mod serial;
 
 #[repr(u8)]
-pub enum Packets {
-    StepDone = 1,
+#[derive(PartialEq, Eq)]
+pub enum Parameter {
+    None,
+    StepDone,
     HomeDone,
     SendHome,
     SendCommand,
@@ -19,8 +21,8 @@ pub const BUFFERED_INSTRUCTIONS: u32 = 5;
 impl Printer {
 
     pub async fn initialize(&mut self){
-        self.serial.register_handler(Packets::StepDone as u8, on_command_completion);
-        self.serial.register_handler(Packets::HomeDone as u8, on_home_completion);
+        self.serial.register_handler(Parameter::StepDone as u8, on_command_completion);
+        self.serial.register_handler(Parameter::HomeDone as u8, on_home_completion);
         self.serial.listen();
         self.home().await;
     }
@@ -31,7 +33,7 @@ impl Printer {
             State::Idle => {
                 self.instructions.clear();
                 self.state = State::Initializing;
-                self.serial.send(Packets::SendHome as u8, None);
+                self.serial.send(&mut [b'H']);
                 while self.state == State::Initializing { time::sleep(time::Duration::from_secs(2)).await; }
             }
             _ => {
@@ -47,7 +49,7 @@ impl Printer {
         
         for _ in 0..min(BUFFERED_INSTRUCTIONS, self.instructions.len() as u32) {
             let instruction = self.instructions.pop_front().unwrap();
-            self.send_instruction(instruction);
+            self.execute_instruction(instruction);
         }
 
         while let State::Printing(i) = self.state { time::sleep(time::Duration::from_secs(2)).await; }
@@ -69,9 +71,10 @@ impl Printer {
     pub fn on_command_completion(&mut self, data: &[u8]){
         if self.instructions.len() == 0 {
             self.state = State::Idle;
-        } else if let State::Printing(_) = self.state {
+        } else if let State::Printing(i) = self.state {
             let instruction = self.instructions.pop_front().unwrap();
-            self.send_instruction(instruction);
+            self.state = State::Printing(i+1);
+            self.execute_instruction(instruction);
         }
     }
 
@@ -79,10 +82,30 @@ impl Printer {
         self.state = State::Idle;
     }
 
-    fn send_instruction(&mut self, instruction: gcode::Instruction){
-        // TODO impl
-        // parses the instruction 
-        // send the data on the serial
+    fn execute_instruction(&mut self, instruction: gcode::Instruction){
+        let mut data: Vec<u8> = Vec::new();
+        let mut try_add_motor_position = |axis: char, res: u16, offset: u16| {
+            if instruction.params.contains_key(&axis){
+                if let Some(mm) = instruction.params.get(&axis).unwrap() {
+                    let position = (*mm as u16)*res+offset;
+                    data.push(b'X');
+                    data.extend(position.to_le_bytes());
+                }
+            }
+        };
+        
+        match instruction.command {
+            gcode::Command::G(0 | 1) => { // TODO relative positioning and simultneaou F and XYZ
+                try_add_motor_position('X', 1, 0);
+                try_add_motor_position('Y', 1, 0);
+                try_add_motor_position('Z', 1, 0);
+            }
+
+            _ => {
+
+            }
+        };
+        self.serial.send(&data);
     }
 }
 
@@ -92,10 +115,7 @@ pub struct Printer {
     serial: serial::Serial
 }
 
-pub fn get() -> &'static mut Printer {
-    return unsafe { &mut INSTANCE }
-}
-
+pub fn get() -> &'static mut Printer { return unsafe { &mut INSTANCE } }
 static mut INSTANCE: Printer = Printer { state:State::Initializing, instructions:VecDeque::new(), serial: serial::Serial::new(port, 115200)};
 
 
@@ -105,12 +125,13 @@ fn on_home_completion(data: &[u8]) { get().on_home_completion();}
 
 #[derive(PartialEq, Eq)]
 enum State {
-
     Initializing,
     Idle,
     Printing(u32), // TODO add a struct 
     Paused
 }
+
+
 
 pub fn run_gcode_tests() {
 

@@ -30,21 +30,10 @@ impl Serial {
         });
     }
 
-    pub fn send(&mut self, packetid: u8, data: Option<&[u8]>) {
-        match data {
-            Some(d) => {
-                let id = IoSlice::new(&[packetid]);
-                let data = IoSlice::new(&d);
-                self.port.write_vectored(&[id, data]);
-            }
-            None => {
-                self.port.write_all(&[packetid]);
-            }
-        }
+    pub fn send(&mut self, data: &[u8]) {
+        self.port.write_vectored(&[IoSlice::new(&[data.len() as u8]), IoSlice::new(&data)]);
     }
-    
 }
-
 pub struct Serial {
     port: Box<dyn SerialPort>,
     handlers: HashMap<u8, fn(&[u8])>,

@@ -1,48 +1,96 @@
+#include "Adafruit_MotorShield.h"
 #include "Encoder.h"
+#include "HardwareSerial.h"
 
-Encoder myEnc(2, 5);
+class MotorPID {
+public:
+    MotorPID(uint8_t interrupt, uint8_t encoder, uint8_t n, float kp)
+        : _position(0), target(0), speed(0),
+        kp(kp),
+        _encoder(interrupt, encoder) {
+        _motor = AFMS.getMotor(n);
+    }
 
-long commande = 0;
-long Position;
-int erreur;
-int consigne = 180; // consigne en position à atteindre
-float kp = 0.3f;
+    void update(){
+        _position = _encoder.read();
+        int16_t error = target - _position;
+        float command = kp * error;
+
+        speed = constrain(command, -255, 255);
+        _motor->setSpeed(abs(speed));
+        _motor->run(speed > 0 ? FORWARD : BACKWARD);        
+    }
+
+    inline const uint8_t position() const { return _position; }
+
+    uint16_t target;
+    int16_t speed;
+
+    float kp;
+
+private:
+    uint16_t _position;
+    Encoder _encoder;
+    Adafruit_DCMotor* _motor;
+};
+
+
+Adafruit_MotorShield AFMS = Adafruit_MotorShield();
+
+
+const uint8_t BUFFERED_INTRUCTIONS = 5;
+uint8_t next = 0, buffered = 0;
+const uint8_t READ_LENGTH = 64;
+uint8_t readBuffer[8][READ_LENGTH];
+
+
+MotorPID xPID;
+MotorPID yPID;
+MotorPID zPID;
+
 
 void setup() {
-    // initialisation et acquisition de la valeur du correcteur proportionnel Kp à travers le moniteur série
+
+    xPID = MotorPID(0,8,0,0.05f);
+    yPID = MotorPID(1,8,0,0.05f);
+    zPID = MotorPID(2,8,0,0.05f);
     Serial.begin(115200);
-    pinMode(12, OUTPUT); // pin Direction
-    pinMode(3, OUTPUT);  // pin PWM
-    Serial.print("temps (ms)");
-    Serial.print(" ; ");
-    Serial.print("position");
-    Serial.print(" ; ");
-    Serial.print("consigne");
-    Serial.print(" ; ");
-    Serial.println("commande");
 }
 
 void loop() {
-    // Attention, mettre le moniteur serie a 115200 baud pour pouvoir lire l'affichage
-    Position = myEnc.read();      // lecture de la position du codeur
-    erreur = consigne - Position; // calcul de la valeur de l'erreur
-    commande = kp * erreur;       // calcul de la valeur de commande moteur en fonction de kp et de erreur;
-    moteur(commande);
-    if(commande != 0){
-        Serial.print(millis());
-        Serial.print(" ; ");
-        Serial.print(Position);
-        Serial.print(" ; ");
-        Serial.print(consigne);
-        Serial.print(" ; ");
-        Serial.println(commande);
+    if (Serial.available() > 0){
+        buffered = (buffered + 1) % BUFFERED_INTRUCTIONS;
+        Serial.readBytes(readBuffer[buffered], 1);
+        Serial.readBytes(readBuffer[buffered], readBuffer[buffered][0]);
     }
+    // processInstruction();
+    xPID.update();
+    yPID.update();
+    zPID.update();
 }
 
-// Commande du moteur
-void moteur(int vit) {
-    vit = constrain(vit, -255, 255);
-
-    analogWrite(3, abs(vit));
-    digitalWrite(12, (vit > 0));
+void processInstruction(){
+    const uint8_t *buffer = readBuffer[next];
+    uint8_t n = 0;
+    while (n < READ_LENGTH){
+        switch (buffer[n++]) {
+        case 'H':
+            xPID.target = 0; // TODO reset the encoders
+            yPID.target = 0;
+            zPID.target = 0;
+            break;
+        case 'X':
+            xPID.target = parse_uint16_t(buffer, n);
+            break;
+        case 'Y':
+            yPID.target = parse_uint16_t(buffer, n);
+            break;
+        case 'Z':
+            zPID.target = parse_uint16_t(buffer, n);
+            break;
+        }
+    }
+    next = (next + 1) % BUFFERED_INTRUCTIONS;
 }
+
+inline uint16_t parse_uint16_t(const uint8_t const *buffer, uint8_t &index) { return buffer[index++] + buffer[index++] << 8; }
