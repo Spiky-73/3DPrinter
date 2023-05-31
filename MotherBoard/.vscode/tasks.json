@@ -2,6 +2,15 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "raspiprint: deploy",
+			"type": "process",
+			"command": "./deplay.bat",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
 			"type": "cargo",
 			"command": "build",
 			"problemMatcher": [
