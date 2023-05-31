@@ -1,3 +1,18 @@
+# 3D Printer
+
+## Cross-compilation
+Install the [Raspberry Pi toolchain](https://gnutoolchains.com/raspberry/).
+
+Run
+```bash
+rustup target add armv7-unknown-linux-gnueabihf
+```
+
+Add to your .cargo/config.toml
+```toml
+[build]
+target = "armv7-unknown-linux-gnueabihf"
+```
 
 ## Carte Main - Raspberry Pi
 
