@@ -1,7 +1,0 @@
-{
-    "board": "arduino:avr:mega",
-    "sketch": "asservisement\\asservisement.ino",
-    "output": "build",
-    "configuration": "cpu=atmega2560",
-    "programmer": "avrisp"
-}
