@@ -39,7 +39,7 @@
             "stopAtEntry": false,
             "cwd": "${workspaceRoot:MotherBoard}",
             "environment": [],
-            "console": "integratedTerminal", 
+            "console": "internalConsole", 
         }
     ]
 }

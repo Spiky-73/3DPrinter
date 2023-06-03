@@ -6,10 +6,11 @@
 			"group": "build",
 			"dependsOn": "raspiprint: build",
 			"type": "shell",
-			"command": "scp",
+			"command": "pscp",
 			"args": [
+				"-pw", "p2i6",
 				"target/armv7-unknown-linux-gnueabihf/debug/mother_board",
-				"imprimante@raspiprint.local:~/Printer/MotherBoard"
+				"imprimante@raspiprint.local:/home/imprimante/Printer/MotherBoard"
 			],
 			"problemMatcher": []
 		},
