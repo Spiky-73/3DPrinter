@@ -5,17 +5,41 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "(Raspberry PI) Pipe Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "~/Printer/MotherBoard/mother_board",
+            "args": [],
+            "preLaunchTask": "raspiprint: upload",
+            "stopAtEntry": false,
+            "cwd": "~/Printer/MotherBoard",
+            "environment": [],
+            "externalConsole": false,
+            "pipeTransport": {
+                "debuggerPath": "/usr/bin/gdb",
+                "pipeProgram": "plink",
+                "pipeArgs": [
+                    "-pw", "p2i6",
+                    "imprimante@raspiprint"
+                ],
+                "pipeCwd": ""
+            },
+            "MIMode": "gdb",
+            "sourceFileMap":{
+                "~/Printer/MotherBoard": "/src/",
+            }
+        },
+        {
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceRoot:MotherBoard}/target/debug/mother_board.exe",
+            "program": "${workspaceRoot:MotherBoard}/target/x86_64-pc-windows-msvc/debug/mother_board.exe",
             "preLaunchTask": "rust: cargo build",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot:MotherBoard}",
             "environment": [],
-            "console": "integratedTerminal",
-        }, 
-
+            "console": "integratedTerminal", 
+        }
     ]
 }

@@ -1,2 +1,2 @@
 [build]
-target = "armv7-unknown-linux-gnueabihf"
+target = ["x86_64-pc-windows-msvc", "armv7-unknown-linux-gnueabihf"]
