@@ -1,19 +1,16 @@
-use tokio::join;
+use std::time::Duration;
+
+use tokio::{time::sleep, join};
 
 mod printer;
 mod network;
 
 #[tokio::main]
 async fn main() {
-    
-    // printer::run_gcode_tests();
-
     join!(printer::get().initialize(), network::get().initialize());
 
-    loop {
-        // TODO impl
-        // broadcast printer info via wifi 
-        //     - print status
-        //     - sensor status    
-    }
+    printer::get().load_file("sphere_0.15mm_PLA_MK3S_1h0m.gcode");
+    
+    printer::get().print().await;
+    loop { sleep(Duration::from_secs(10)).await; }
 }

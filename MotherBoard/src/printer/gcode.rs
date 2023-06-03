@@ -1,8 +1,9 @@
 use std::collections::HashMap;
+use std::process::CommandArgs;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Command { G(u16), M(u16) }
+pub enum Command { None, G(u16), M(u16) }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseFieldError;
@@ -44,7 +45,12 @@ impl FromStr for Instruction {
     type Err = ParseGcodeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (command, params) = s.split(';').nth(0).ok_or(ParseGcodeError)?.split_once(" ").unwrap_or((s, ""));
+        let s = s.split(';').nth(0).ok_or(ParseGcodeError)?.trim();
+
+        if s == "" {
+            return Ok(Instruction { command: Command::None, params: HashMap::new() })
+        }
+        let (command, params) = s.split_once(" ").unwrap_or((s, ""));
             
         let command: Field = command.parse().map_err(|_| ParseGcodeError)?;
         let number = command.number.ok_or(ParseGcodeError)? as u16;
@@ -120,8 +126,6 @@ M140: Set Bed Temperature (Fast)
 M190: Wait for bed temperature to reach target temp
 
 M201: Set max acceleration
-
-M203: Set maximum feedrate (Firmware dependant)
 
 M203: Set maximum feedrate (Firmware dependant)
  - Pn Tn

@@ -24,6 +24,7 @@
                 ],
                 "pipeCwd": ""
             },
+            "targetArchitecture": "arm",
             "MIMode": "gdb",
             "sourceFileMap":{
                 "~/Printer/MotherBoard": "/src/",

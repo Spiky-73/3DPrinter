@@ -265,9 +265,9 @@ M205 X8.00 Y8.00 Z0.40 E4.50 ; sets the jerk limits, mm/sec
 M205 S0 T0 ; sets the minimum extruding and travel feed rate, mm/sec
 M107
 ;TYPE:Custom
-M862.3 P "MK3S" ; printer model check
-M862.1 P0.4 ; nozzle diameter check
-M115 U3.11.0 ; tell printer latest fw version
+; M862.3 P "MK3S" ; printer model check
+; M862.1 P0.4 ; nozzle diameter check
+; M115 U3.11.0 ; tell printer latest fw version
 G90 ; use absolute coordinates
 M83 ; extruder relative mode
 M104 S215 ; set extruder temp
