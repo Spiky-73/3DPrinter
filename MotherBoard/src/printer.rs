@@ -1,10 +1,13 @@
 use std::{cmp::min, str, time::Duration, thread, fs::File, io::Read};
 
 use tokio::time;
+
+use self::gcode::Command;
 mod gcode;
 
-pub const BUFFERED_INSTRUCTIONS: usize = 5;
+pub const BUFFERED_INSTRUCTIONS: usize = 4;
 pub const PORT: &str = "/dev/serial0";
+// pub const PORT: &str = "COM3";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum State {
@@ -17,9 +20,9 @@ pub enum State {
 pub struct PrintStatus {
     pub sent: usize,
     pub completed: usize,
-    pub progess: u8,
+    pub progress: u8,
     pub time_left: u16,
-    pub silent_progess: u8,
+    pub silent_progress: u8,
     pub silent_time_left: u16,
 }
 impl Printer {
@@ -37,8 +40,9 @@ impl Printer {
             State::Initializing => return,
             State::Idle => {
                 println!("Initialising controller...");
-                _ = self.serial.write(&[1, b'H']);
-                self.instructions.clear();
+                self.commands.clear();
+                _ = self.serial.write(&[2]);
+                _ = self.serial.write(&[b'H', 0b111]);
                 self.state = State::Initializing;
                 while self.state == State::Initializing {
                     time::sleep(time::Duration::from_secs(2)).await;
@@ -64,26 +68,42 @@ impl Printer {
     
     pub fn load_gcode(&mut self, code: &str){ // Not supported: M862.3, M862.1
         println!("Parsing gcode...");
-        self.instructions.clear();
+        self.commands.clear();
+        let mut local: Vec<Box<dyn gcode::Command>> = Vec::new();
+        
         for line in code.split("\n") {
             let line = line.strip_suffix('\r').unwrap_or(line);
-            let inst: gcode::Instruction = line.parse().unwrap();
-            if inst.command != gcode::Command::None { self.instructions.push(inst); }
+            let command: Result<Box<dyn gcode::Command>,_> = gcode::parse(line, &self.settings);
+            if let Ok(command) = command {
+                let scope = command.scope();
+                if scope & gcode::scope::CONFIG != 0 {command.edit_config(&mut self.settings);}
+                if scope & gcode::scope::PI != 0 { local.push(command); }
+                else if scope & gcode::scope::ARDUINO != 0 && command.data_arduino().len() != 0 {
+                    self.commands.push((command, local));
+                    local = Vec::new();
+                }
+            } else {
+                println!("Unhandled GCommand \"{}\"", line);
+            }
+        }
+        if local.len() != 0 {
+            let command: Box<dyn gcode::Command> = gcode::parse("G4", &self.settings).unwrap();
+            self.commands.push((command, local));
         }
         println!("Sucess!");
     }
 
     pub async fn print(&mut self){
-        if self.state != State::Idle || self.instructions.len() == 0 {
+        if self.state != State::Idle || self.commands.len() == 0 {
             println!("Cannot start a print");
             return
         }
 
-        self.state = State::Printing(PrintStatus { sent: 0, completed: 0, progess: 0, time_left: 0, silent_progess: 0, silent_time_left: 0 });
+        self.state = State::Printing(PrintStatus { sent: 0, completed: 0, progress: 0, time_left: 0, silent_progress: 0, silent_time_left: 0 });
         
         println!("Printing...");
-        for _ in 0..min(BUFFERED_INSTRUCTIONS, self.instructions.len()) {
-            self.send_next_instruction();
+        for _ in 0..min(BUFFERED_INSTRUCTIONS+1, self.commands.len()) {
+            self.send_next_command();
         }
         
         while let State::Printing(_) = self.state { time::sleep(time::Duration::from_secs(2)).await; }
@@ -91,7 +111,7 @@ impl Printer {
     }
 
     pub fn cancel_print(&mut self){
-        self.instructions.clear();
+        self.commands.clear();
         self.state = State::Idle;
     }
 
@@ -104,10 +124,13 @@ impl Printer {
             b'_' => {
                 if self.state == State::Initializing { // home finished
                     self.state = State::Idle;
-                } else if let State::Printing(ref mut status) = self.state { // print in progress
+                    // TODO send pause
+                } else if let State::Printing(ref status) = self.state { // print in progress
+                    if status.sent < self.commands.len() { self.send_next_command(); }
+                    let State::Printing(ref mut status) = self.state else {unreachable!() };
                     status.completed += 1;
-                    if status.sent < self.instructions.len() { self.send_next_instruction(); }
-                    else if status.completed == self.instructions.len() { self.state = State::Idle; }
+                    for command in &self.commands.get(status.completed-1).unwrap().1 {  command.run_pi(status); }
+                    if status.completed == self.commands.len() { self.state = State::Idle; }
                 }
             }
             _ => {}
@@ -142,136 +165,36 @@ impl Printer {
         });
     }
 
-    fn send_next_instruction(&mut self){
+    fn send_next_command(&mut self){
         let State::Printing(ref mut status) = self.state else { unreachable!()};
-        let instruction: &gcode::Instruction = self.instructions.get(status.sent).unwrap();
-        
-        let mut data: Vec<u8> = Vec::new();
-        match instruction.command {
-            gcode::Command::G(0 | 1) => {
-                let mut try_add_motor_position = |axis: u8, res: u16, offset: u16| {
-                    if instruction.params.contains_key(&(axis as char)){
-                        if let Some(mm) = instruction.params.get(&(axis as char)).unwrap() {
-                            let position = (*mm * (res as f32) + (offset as f32)) as u16;
-                            data.push(axis);
-                            data.extend(position.to_le_bytes());
-                        }
-                    }
-                };
-                try_add_motor_position(b'X', 3, 0);
-                try_add_motor_position(b'Y', 3, 0);
-                try_add_motor_position(b'Z', 3, 0);
-                // TODO simultaneous F and XYZ
-                // TODO implement E F H R S
-            }
-            gcode::Command::G(4) => {
-                let mut pause: u32 = 0;
-                if let Some(sec) = instruction.params.get(&'S').unwrap_or(&None) { pause += (*sec as u32)*1000; }
-                if let Some(ms) = instruction.params.get(&'P').unwrap_or(&None) { pause += *ms as u32; }
-                data.push(b'P');
-                data.extend(pause.to_le_bytes())
-            }
-            gcode::Command::G(28) => {
-                let all = instruction.params.len() == 0;
-                let mut try_reset = |axis: u8| {
-                    if all != instruction.params.contains_key(&(axis as char)) {
-                        data.push(axis);
-                        data.extend((0 as u16).to_le_bytes());
-                    }
-                };
-                try_reset(b'X');
-                try_reset(b'Y');
-                try_reset(b'Z');
-                // ? impl
-            }
-            gcode::Command::G(92) => {
-
-                let all = instruction.params.len() == 0;
-                let mut try_force_position = |axis: u8, res: u16, offset: u16| {
-                    if all {
-                        data.push(axis+32);
-                        data.extend((0 as u16).to_le_bytes());
-                    } else if instruction.params.contains_key(&(axis as char)) {
-                        if let Some(mm) = instruction.params.get(&(axis as char)).unwrap() {
-                            let position = (*mm * (res as f32) + (offset as f32)) as u16;
-                            data.push(axis+32);
-                            data.extend(position.to_le_bytes());
-                        }
-                    }
-                };
-                try_force_position(b'X', 3, 0);
-                try_force_position(b'Y', 3, 0);
-                try_force_position(b'Z', 3, 0);
-            }
-            gcode::Command::G(21 | 80 | 90) => {} // Does nothing but supported
-            
-            gcode::Command::M(73) => {
-                let mut silent = true;
-
-                if let Some(percent) = instruction.params.get(&'P'){
-                    if let Some(percent) = percent {
-                        silent = false;
-                        status.progess = *percent as u8;
-                        if status.progess == 0 { println!("Build start"); }
-                    }
-                }
-                if let Some(time) = instruction.params.get(&'R'){
-                    if let Some(time) = time {
-                        silent = false;
-                        status.time_left = *time as u16;
-                    }
-                }
-                if let Some(percent) = instruction.params.get(&'Q'){
-                    if let Some(percent) = percent {
-                        status.silent_progess = *percent as u8;
-                    }
-                }
-                if let Some(time) = instruction.params.get(&'S'){
-                    if let Some(time) = time {
-                        status.silent_time_left = *time as u16;
-                    }
-                }
-                if !silent { println!("{}% done ({} min remaining)", status.progess, status.time_left)};
-                if !silent && status.progess == 100 { println!("Build start"); }
-
-            }
-            gcode::Command::M(104) => {
-                // TODO impl
-            }
-            gcode::Command::M(109) => {
-                // TODO impl
-            }
-            gcode::Command::M(201 | 203 | 204) => {
-                // TODO impl
-            }
-            gcode::Command::M(900) => {
-                // TODO impl
-            }
-            gcode::Command::M(83 | 84 | 106 | 107 | 115 | 140 | 190 | 862 | 907) => {} // Does nothing but supported
-            _ => {} // Non supported commands, includes M93, M205, M221
-        };
+        let data: &Vec<u8> = self.commands.get(status.sent).unwrap().0.data_arduino();
         status.sent+=1;
-        if data.len() != 0 {
-            _ = self.serial.write_all(&[data.len() as u8]);
-            _ = self.serial.write_all(&data);
-        } else {
-            self.handle_data(&[b'_']);
-        }
+        _ = self.serial.write_all(&[data.len() as u8]);
+        _ = self.serial.write_all(&data);
+        // println!("Sending {:?}", data);
     }
 }
 
 pub struct Printer {
     state: State,
-    instructions: Vec<gcode::Instruction>,
-    serial: Box<dyn serialport::SerialPort>
+    commands: Vec<(Box<dyn Command>, Vec<Box<dyn Command>>)>,
+    serial: Box<dyn serialport::SerialPort>,
+    settings: Settings
 }
 
 pub fn get() -> &'static mut Printer {
     unsafe {
         if INSTANCE.is_none() {
             INSTANCE = Some( Printer {
-                    state:State::Idle, instructions:Vec::new(),
-                    serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port")
+                    state:State::Idle,
+                    commands:Vec::new(),
+                    serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port"),
+                    settings: Settings {
+                        x_coder: Encoder { resolution: 3, offset: 20 },
+                        y_coder: Encoder { resolution: 3, offset: 20 },
+                        z_coder: Encoder { resolution: 3, offset: 20 },
+                        abs_pos: true, abs_ext: false
+                    }
             } );
         }
         return INSTANCE.as_mut().unwrap();
@@ -279,25 +202,20 @@ pub fn get() -> &'static mut Printer {
 }
 static mut INSTANCE: Option<Printer> = None;
 
-pub fn run_gcode_tests() {
+pub struct Settings {
+    pub x_coder: Encoder,
+    pub y_coder: Encoder,
+    pub z_coder: Encoder,
+    pub abs_pos: bool,
+    pub abs_ext: bool,
+}
 
-    let gcodes_tests = [
-        // Handled
-        "G1 X20 Y-.5 ; a comment",
-        "G1 X",
-        "G1",
-        "4 X20",
-        "H1 X20 Y520",
-        "; a comment",
-        "",
+pub struct Encoder {
+    pub resolution: u16,
+    pub offset: i16,
+}
 
-        // TODO Unhandled
-        "G7.5",
-
-    ];
-
-    for test in gcodes_tests{
-        let code = test.parse::<gcode::Instruction>();
-        println!("{code:?}");
-    }
+impl Encoder {
+    fn postion(&self, mm: i16) -> u16 {((mm+self.offset) as u16)*self.resolution}
+    fn mm(&self, position: u16) -> i16 {(position/self.resolution) as i16 - self.offset}
 }

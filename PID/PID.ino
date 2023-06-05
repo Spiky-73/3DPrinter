@@ -23,7 +23,8 @@ public:
 
     void update(long delta){
 #ifdef SIMULATE
-        _position += speed * delta * 3;
+        _positionF += speed * delta * 3;
+        _position = _positionF;
 #else 
         _position = _encoder.read();
 #endif
@@ -44,16 +45,18 @@ public:
         target = position;
     }
 
-    inline bool atTarget() const { return abs((int32_t)target - position()) <= 2; }
+    inline bool atTarget() const { return abs((int32_t)target - position()) <= 1; }
 
     inline const uint16_t position() const { return _position; }
 
     uint16_t target;
-    int16_t speed;
+    float speed;
 
     float kp;
 
 private:
+    debug(float _positionF);
+
     uint16_t _position;
     Encoder _encoder;
     uint8_t _direction, _pwm;
@@ -65,12 +68,12 @@ enum SerialState {
 };
 
 
-MotorPID xPID(0, 0, 0, 0, 1), yPID(0, 0, 0, 0, 1), zPID(0, 0, 0, 0, 1);
+MotorPID xPID(0, 0, 0, 0, 0.2f), yPID(0, 0, 0, 0, 0.2f), zPID(0, 0, 0, 0, 0.2f);
 
 // TODO change SERIAL_RX_BUFFER_SIZE
 uint8_t bytesToRead = WaitingForData;
 byte instructionSize = 0;
-byte intruction[16];
+byte instruction[16];
 
 void setup() {
     Serial.begin(115200);
@@ -89,7 +92,7 @@ void updateReception(){
     }
     if (bytesToRead > Buffered && Serial.available() >= bytesToRead) { // received data
         instructionSize = bytesToRead;
-        Serial.readBytes(intruction, instructionSize);
+        Serial.readBytes(instruction, instructionSize);
         bytesToRead = Buffered;
     }
 }
@@ -97,7 +100,10 @@ void updateReception(){
 void updateIntruction(){
     if (working && time >= pauseUntil && xPID.atTarget() && yPID.atTarget() && zPID.atTarget()) {
         writeHeader('_', 0);
-        debug(idleStart = time);
+        debug(
+            idleStart = time;
+            logPosTime = 0;
+        );
         working = false;
     }
     if (!working && bytesToRead == Buffered) {
@@ -108,7 +114,7 @@ void updateIntruction(){
                 Serial.write(s.c_str(), s.length());
             }
         )
-        processInstruction(intruction, instructionSize);
+        processInstruction(instruction, instructionSize);
         bytesToRead = WaitingForData;
         working = true;
         debug(logPosTime = 0);
@@ -118,14 +124,14 @@ void updateIntruction(){
     zPID.update(delta);
 
     debug(
-        if (working && time >= logPosTime) {
-            String info = 'X' + String(xPID.position()) + '>' + String(xPID.target);
-            info += " Y" + String(yPID.position()) + '>' + String(yPID.target);
-            info += " Z" + String(zPID.position()) + '>' + String(zPID.target);
-            writeHeader('D', info.length());
-            Serial.write(info.c_str(), info.length());
-            logPosTime = time + 500;
-        }
+        // if (working && time >= logPosTime) {
+        //     String info = 'X' + String(xPID.position()) + '>' + String(xPID.target);
+        //     info += " Y" + String(yPID.position()) + '>' + String(yPID.target);
+        //     info += " Z" + String(zPID.position()) + '>' + String(zPID.target);
+        //     writeHeader('D', info.length());
+        //     Serial.write(info.c_str(), info.length());
+        //     logPosTime = time + 1000;
+        // }
     )
 }
 
@@ -134,7 +140,7 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
     byte n = 0;
     while (n < lenght){
         switch (buffer[n++]) {
-        case 'H':
+        case 'H':{
             simulate(
                 writeHeader('I', 41);
                 Serial.write("Simulating movement. Motors will not move", 41);
@@ -143,10 +149,13 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
                 writeHeader('D', 25);
                 Serial.write("Motor positions displayed", 25);
             )
-            xPID.target = 0; // TODO reset the encoders
-            yPID.target = 0;
-            zPID.target = 0;
+            byte data = buffer[n++];
+            // TODO real home
+            if(data & 0b001) xPID.target = 0;
+            if(data & 0b010) yPID.target = 0;
+            if(data & 0b100) zPID.target = 0;
             break;
+            }
         case 'X':
             xPID.target = parse_uint16_t(buffer, n);
             break;
@@ -156,7 +165,7 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
         case 'Z':
             zPID.target = parse_uint16_t(buffer, n);
             break;
-        case 'B':
+        case 'B': // TODO pause of 0 ms
             pauseUntil = time + parse_uint32_t(buffer, n);
             break;
         default:
@@ -169,4 +178,4 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
 }
 
 inline uint16_t parse_uint16_t(const byte *const buffer, byte &index) { return buffer[index++] + (buffer[index++] << 8); }
-inline uint32_t parse_uint32_t(const byte *const buffer, byte &index) { return parse_uint16_t(buffer, index) + parse_uint16_t(buffer, index) << 16; }
+inline uint32_t parse_uint32_t(const byte *const buffer, byte &index) { return parse_uint16_t(buffer, index) + (parse_uint16_t(buffer, index) << 16); }

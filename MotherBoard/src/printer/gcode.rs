@@ -1,14 +1,78 @@
-use std::collections::HashMap;
-use std::process::CommandArgs;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Command { None, G(u16), M(u16) }
+use super::{Settings, PrintStatus};
+
+mod mcommands;
+mod gcommands;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseFieldError;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseGcodeError;
+
+pub mod scope {
+    pub const CONFIG: u8 = 0b0001;
+    pub const PI: u8 = 0b0010;
+    pub const ARDUINO: u8 = 0b0100;
+}
+
+pub struct Void;
+impl Command for Void {
+    fn new(_: &[Field], _: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized { Ok(Void) }
+}
+
+pub struct Unhandled{
+    letter: char,
+    number: u16,
+}
+impl Command for Unhandled {
+    fn new(fields: &[Field], _: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized {
+        Ok(Unhandled { letter: fields[0].letter, number: fields[0].number.unwrap() as u16 })
+    }
+    fn scope(&self) -> u8 { scope::CONFIG }
+    fn edit_config(&self, _: &mut Settings) {
+        println!("Unhandled command {}{}", self.letter, self.number)
+    }
+}
+
+static EMPTY: Vec<u8> = Vec::new();
+
+pub trait Command {
+    fn new(fields: &[Field], setting: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized;
+    
+    fn scope(&self) -> u8 {0}
+
+    fn edit_config(&self, settings: &mut Settings) {}
+    fn data_arduino(&self) -> &Vec<u8> { &EMPTY }
+    fn run_pi(&self, status: &mut PrintStatus) {}
+}
+
+pub fn parse(code: &str, setting: &Settings) -> Result<Box<dyn Command>, ParseGcodeError> {
+    let code = code.split(';').nth(0).ok_or(ParseGcodeError)?.trim();
+
+    if code == "" { return Ok(Box::new(Void)) }
+    let (label, params) = code.split_once(" ").unwrap_or((code, ""));
+    
+    let params: Vec<Field> = match params {
+        "" => Vec::new(),
+        _ => params.split_whitespace().map(|f| f.parse::<Field>().map_err(|_| ParseGcodeError)).collect::<Result<_,_>>()?,
+        
+    };
+    return match label {
+        "G0" | "G1" => Ok(Box::new(gcommands::G0::new(&params, setting)?)),
+        "G4"=> Ok(Box::new(gcommands::G4::new(&params, setting)?)),
+        "G28"=> Ok(Box::new(gcommands::G28::new(&params, setting)?)),
+        "G92"=> Ok(Box::new(gcommands::G92::new(&params, setting)?)),
+        "G21" | "G80" | "G90" => Ok(Box::new(Void)),
+        "M73" => Ok(Box::new(mcommands::M73::new(&params, setting)?)),
+        "M104" => Ok(Box::new(Void)),
+        "M109" => Ok(Box::new(Void)),
+        "M201" | "M203" | "M204" => Ok(Box::new(Void)),
+        "M900" => Ok(Box::new(Void)),
+        "M83" | "M84" | "M106" | "M107" | "M115" | "M140" | "M190" | "M862" | "M907" => Ok(Box::new(Void)),
+        _ => Err(ParseGcodeError)
+    };
+}
 
 
 pub struct Field {
@@ -25,54 +89,15 @@ impl FromStr for Field {
         let letter = letter.chars().nth(0).unwrap();
         if !letter.is_ascii_uppercase() {return Err(ParseFieldError)}
         
-        let value: Option<f32> = match number {
+        let number: Option<f32> = match number {
             "" => None::<f32>,
             _ => Some(number.parse().map_err(|_| ParseFieldError)?)
         }; 
         
-        Ok(Field{letter, number: value})
+        Ok(Field{letter, number})
     }
 }
 
-#[derive(Debug)]
-pub struct Instruction {
-    pub command: Command,
-    pub params: HashMap<char, Option<f32>>
-}
-
-
-impl FromStr for Instruction {
-    type Err = ParseGcodeError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.split(';').nth(0).ok_or(ParseGcodeError)?.trim();
-
-        if s == "" {
-            return Ok(Instruction { command: Command::None, params: HashMap::new() })
-        }
-        let (command, params) = s.split_once(" ").unwrap_or((s, ""));
-            
-        let command: Field = command.parse().map_err(|_| ParseGcodeError)?;
-        let number = command.number.ok_or(ParseGcodeError)? as u16;
-        let command = match command.letter {
-            'G' => Command::G(number),
-            'M' => Command::M(number),
-            _ => return Err(ParseGcodeError)
-        };
-        let params: HashMap<char, Option<f32>> = match params {
-            "" => HashMap::new(),
-            _ => {
-                let mut map : HashMap<char, Option<f32>> = HashMap::new();
-                for param in params.split_whitespace() {
-                    let field: Field = param.parse().map_err(|_| ParseGcodeError)?;
-                    map.insert(field.letter, field.number);
-                }
-                map
-            },
-        };
-        Ok(Instruction { command, params })
-    }
-}
 
 /* Codes for a sphere
 M73,83,84,93,104,106,107,109,115,140,190,201,203,204,205,221,862,907,900
