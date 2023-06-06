@@ -38,7 +38,7 @@ fn App(cx: Scope) -> Element {
                 },
             },
             TitledBlock { title: "Monitoring",
-                strong { "Status {:?}" }, br {},
+                strong { "Status {state:?}" }, br {},
                 strong { "Temperature" }, br {},
                 strong { "Completion" }, br {},
             },
