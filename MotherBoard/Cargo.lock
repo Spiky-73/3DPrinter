@@ -1128,6 +1128,7 @@ name = "mother_board"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "cfg-if",
  "dioxus",
  "dioxus-liveview",
  "serialport",

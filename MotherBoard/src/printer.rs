@@ -1,13 +1,19 @@
 use std::{cmp::min, str, time::Duration, thread, fs::File, io::Read};
-
+use cfg_if::cfg_if;
 use tokio::time;
 
 use self::gcode::Command;
 mod gcode;
 
 pub const BUFFERED_INSTRUCTIONS: usize = 4;
-// pub const PORT: &str = "/dev/serial0";
-pub const PORT: &str = "COM10";
+
+cfg_if! {
+    if #[cfg(unix)] {
+        pub const PORT: &str = "/dev/serial0";
+    } else if #[cfg(windows)] {
+        pub const PORT: &str = "COM10";
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum State {
@@ -31,8 +37,14 @@ impl Printer {
         println!("Setting up printer...");
         self.listen();
         time::sleep(time::Duration::from_millis(100)).await;
-        self.home().await;
-        println!("Printer ready !");
+
+        cfg_if! {
+            if #[cfg(unix)] {
+                self.home().await;
+                println!("Printer ready !");
+            } else { println!("Virtual printer for debugging!") }
+
+        }
     }
 
     pub async fn home(&mut self) {

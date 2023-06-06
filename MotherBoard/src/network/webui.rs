@@ -3,6 +3,18 @@ use dioxus::prelude::*;
 use std::net::SocketAddr;
 use axum::{self, extract::WebSocketUpgrade, Router, routing::get, response::Html};
 use super::get as nw_get;
+use cfg_if::cfg_if;
+
+cfg_if! {
+    if #[cfg(unix)] {
+        const HOSTNAME: &str = "raspiprint.local";
+    } else {
+        const HOSTNAME: &str = "localhost";
+    }
+}
+const PORT: u16 = 8080;
+const WILDCARD_IP: &str = "0.0.0.0";
+
 
 fn App(cx: Scope) -> Element {
     let gcode = use_state(cx, || String::new());
@@ -73,8 +85,6 @@ fn TitledBlock<'a>(cx: Scope<'a>, title: &'a str, children: Element<'a>) -> Elem
 }
 
 pub async fn launch() {
-    let HOSTNAME = "localhost";
-    let PORT = 8080;
     let ADDR = SocketAddr::new("0.0.0.0".parse().unwrap(), PORT);
 
     let skeleton = include_str!("skeleton.html");
