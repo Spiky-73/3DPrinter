@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 serialport = {version = "4.2.0", default-features = false}
 tokio = { version = "1.28.1", features = ["full"]}
+axum = "0.6.18"
+dioxus = { git = "https://github.com/DioxusLabs/dioxus.git" }
+dioxus-liveview = { git = "https://github.com/DioxusLabs/dioxus.git", features = ["axum"] }

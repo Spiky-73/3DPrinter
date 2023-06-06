@@ -6,17 +6,17 @@ use self::gcode::Command;
 mod gcode;
 
 pub const BUFFERED_INSTRUCTIONS: usize = 4;
-pub const PORT: &str = "/dev/serial0";
-// pub const PORT: &str = "COM3";
+// pub const PORT: &str = "/dev/serial0";
+pub const PORT: &str = "COM10";
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum State {
     Initializing,
     Idle,
     Printing(PrintStatus),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PrintStatus {
     pub sent: usize,
     pub completed: usize,
@@ -32,7 +32,7 @@ impl Printer {
         self.listen();
         time::sleep(time::Duration::from_millis(100)).await;
         self.home().await;
-        println!("Printer ready !")
+        println!("Printer ready !");
     }
 
     pub async fn home(&mut self) {
@@ -55,18 +55,18 @@ impl Printer {
         }
     }
 
-    pub const fn get_state(&self) -> State { self.state }
+    pub const fn get_state_ref(&self) -> &State { &self.state }
 
 
     pub fn load_file(&mut self, path: &str){
-        println!("Loading for file \"{path}\"...");
+        println!("Loading file \"{path}\"...");
         let mut file = File::open(path).unwrap();
         let mut code = String::new();
         _ = file.read_to_string(&mut code);
         self.load_gcode(&code);
     }
     
-    pub fn load_gcode(&mut self, code: &str){ // Not supported: M862.3, M862.1
+    pub fn load_gcode(&mut self, code: &str) { // Not supported: M862.3, M862.1
         println!("Parsing gcode...");
         self.commands.clear();
         let mut local: Vec<Box<dyn gcode::Command>> = Vec::new();
@@ -186,8 +186,8 @@ pub fn get() -> &'static mut Printer {
     unsafe {
         if INSTANCE.is_none() {
             INSTANCE = Some( Printer {
-                    state:State::Idle,
-                    commands:Vec::new(),
+                    state: State::Idle,
+                    commands: Vec::new(),
                     serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port"),
                     settings: Settings {
                         x_coder: Encoder { resolution: 3, offset: 20 },
@@ -200,6 +200,7 @@ pub fn get() -> &'static mut Printer {
         return INSTANCE.as_mut().unwrap();
     }
 }
+
 static mut INSTANCE: Option<Printer> = None;
 
 pub struct Settings {
