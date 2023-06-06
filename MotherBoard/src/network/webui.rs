@@ -85,7 +85,7 @@ fn TitledBlock<'a>(cx: Scope<'a>, title: &'a str, children: Element<'a>) -> Elem
 }
 
 pub async fn launch() {
-    let ADDR = SocketAddr::new("0.0.0.0".parse().unwrap(), PORT);
+    let ADDR = SocketAddr::new(WILDCARD_IP.parse().unwrap(), PORT);
 
     let skeleton = include_str!("skeleton.html");
 

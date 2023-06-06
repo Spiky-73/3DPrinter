@@ -33,7 +33,7 @@ pub struct PrintStatus {
 }
 impl Printer {
 
-    pub async fn initialize(&mut self){
+    pub async fn initialize(&mut self) {
         println!("Setting up printer...");
         self.listen();
         time::sleep(time::Duration::from_millis(100)).await;
@@ -198,19 +198,20 @@ pub struct Printer {
 pub fn get() -> &'static mut Printer {
     unsafe {
         if INSTANCE.is_none() {
-            INSTANCE = Some( Printer {
-                    state: State::Idle,
-                    commands: Vec::new(),
-                    serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port"),
-                    settings: Settings {
-                        x_coder: Encoder { resolution: 3, offset: 20 },
-                        y_coder: Encoder { resolution: 3, offset: 20 },
-                        z_coder: Encoder { resolution: 3, offset: 20 },
-                        abs_pos: true, abs_ext: false
-                    }
-            } );
+            INSTANCE = Some(Printer {
+                state: State::Idle,
+                commands: Vec::new(),
+                serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port"),
+                settings: Settings {
+                    x_coder: Encoder { resolution: 3, offset: 20 },
+                    y_coder: Encoder { resolution: 3, offset: 20 },
+                    z_coder: Encoder { resolution: 3, offset: 20 },
+                    abs_pos: true, abs_ext: false
+                }
+            });
         }
-        return INSTANCE.as_mut().unwrap();
+
+        INSTANCE.as_mut().unwrap()
     }
 }
 

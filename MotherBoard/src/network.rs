@@ -37,7 +37,8 @@ pub fn get() -> &'static mut Network<'static> {
                 gcode_setter: &|code: &str| {printer::get().load_gcode(code)}
             })
         }
-        return INSTANCE.as_mut().unwrap();
+
+        INSTANCE.as_mut().unwrap()
     }
 }
 
