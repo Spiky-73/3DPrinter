@@ -41,8 +41,8 @@ impl Printer {
             State::Idle => {
                 println!("Initialising controller...");
                 self.commands.clear();
-                _ = self.serial.write(&[2]);
-                _ = self.serial.write(&[b'H', 0b111]);
+                _ = self.serial.write_all(&[2]);
+                _ = self.serial.write_all(&[b'H', 0b111]);
                 self.state = State::Initializing;
                 while self.state == State::Initializing {
                     time::sleep(time::Duration::from_secs(2)).await;
@@ -50,7 +50,7 @@ impl Printer {
                 println!("Controller initialised");
             }
             _ => {
-                // TODO cannot init
+                println!("Printer is busy. Stop the current print before homing")
             }
         }
     }
@@ -124,7 +124,8 @@ impl Printer {
             b'_' => {
                 if self.state == State::Initializing { // home finished
                     self.state = State::Idle;
-                    // TODO send pause
+                    _ = self.serial.write_all(&[5]);
+                    _ = self.serial.write_all(&[b'P', 0, 0, 0, 0]);
                 } else if let State::Printing(ref status) = self.state { // print in progress
                     if status.sent < self.commands.len() { self.send_next_command(); }
                     let State::Printing(ref mut status) = self.state else {unreachable!() };

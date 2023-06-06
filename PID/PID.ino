@@ -24,13 +24,15 @@ public:
     void update(long delta){
 #ifdef SIMULATE
         _positionF += speed * delta * 3;
-        _position = _positionF;
-#else 
-        _position = _encoder.read();
+        _positionF = max(0, _positionF);
+        uint16_t npos = _positionF;
+#else
+        uint16_t npos = _encoder.read();
 #endif
-        int16_t error = target - _position;
-        float command = kp * error;
-        setSpeed(command);
+        delta = npos - _position;
+        _position = npos;
+        if(homing == 0) PID();
+        else home();
     }
 
     void setSpeed(float speed) {
@@ -45,17 +47,69 @@ public:
         target = position;
     }
 
-    inline bool atTarget() const { return abs((int32_t)target - position()) <= 1; }
+    inline void resethome() {
+        homing = 4;
+        target = 0;
+    }
+
+    inline bool atTarget() const { return homing == 0 && abs((int32_t)target - position()) <= 1; }
 
     inline const uint16_t position() const { return _position; }
 
+    int16_t delta;
     uint16_t target;
     float speed;
 
     float kp;
+    byte homing;
 
 private:
-    debug(float _positionF);
+    void PID() {
+        int16_t error = target - _position;
+        float command = kp * error;
+        setSpeed(command);
+    }
+
+    void home(){
+        if(time < _sleep) return;
+        switch (homing) {
+        case 4: {
+            setSpeed(-1);
+            _sleep = time + 20;
+            homing--;
+            logPosTime = 0;
+            break;
+        }
+        case 3: { // fast
+            if(delta == 0) {
+                setSpeed(0.3f);
+                homing--;
+                logPosTime = 0;
+            }
+            break;
+        }
+        case 2: {// target 50
+            if(_position > 50){
+                setSpeed(-1);
+                _sleep = time + 20;
+                homing--;
+                logPosTime = 0;
+            }
+            break;
+        }
+        case 1: {// slow 0
+            if(delta == 0){
+                _encoder.readAndReset();
+                homing = 0;
+                logPosTime = 0;
+            }
+            break;
+        }
+        }
+    }
+
+    uint32_t _sleep;
+    simulate(float _positionF);
 
     uint16_t _position;
     Encoder _encoder;
@@ -98,7 +152,8 @@ void updateReception(){
 }
 
 void updateIntruction(){
-    if (working && time >= pauseUntil && xPID.atTarget() && yPID.atTarget() && zPID.atTarget()) {
+    bool paused = time < pauseUntil;
+    if ((working || !paused) && xPID.atTarget() && yPID.atTarget() && zPID.atTarget()) {
         writeHeader('_', 0);
         debug(
             idleStart = time;
@@ -106,7 +161,7 @@ void updateIntruction(){
         );
         working = false;
     }
-    if (!working && bytesToRead == Buffered) {
+    if (!working && !paused && bytesToRead == Buffered) {
         debug(
             if (idleStart != time) {
                 String s = "Idle (" + String(time - idleStart) + "ms)";
@@ -114,25 +169,26 @@ void updateIntruction(){
                 Serial.write(s.c_str(), s.length());
             }
         )
+        working = true;
         processInstruction(instruction, instructionSize);
         bytesToRead = WaitingForData;
-        working = true;
         debug(logPosTime = 0);
     }
-    xPID.update(delta);
-    yPID.update(delta);
-    zPID.update(delta);
-
-    debug(
-        // if (working && time >= logPosTime) {
-        //     String info = 'X' + String(xPID.position()) + '>' + String(xPID.target);
-        //     info += " Y" + String(yPID.position()) + '>' + String(yPID.target);
-        //     info += " Z" + String(zPID.position()) + '>' + String(zPID.target);
-        //     writeHeader('D', info.length());
-        //     Serial.write(info.c_str(), info.length());
-        //     logPosTime = time + 1000;
-        // }
-    )
+    if(working){
+        xPID.update(delta);
+        yPID.update(delta);
+        zPID.update(delta);
+        debug(
+            if (working && time >= logPosTime) {
+                String info = 'X' + String(xPID.position()) + '>' + String(xPID.target);
+                info += " Y" + String(yPID.position()) + '>' + String(yPID.target);
+                info += " Z" + String(zPID.position()) + '>' + String(zPID.target);
+                writeHeader('D', info.length());
+                Serial.write(info.c_str(), info.length());
+                logPosTime = time + 1000;
+            }
+        )
+    }
 }
 
 
@@ -150,12 +206,11 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
                 Serial.write("Motor positions displayed", 25);
             )
             byte data = buffer[n++];
-            // TODO real home
-            if(data & 0b001) xPID.target = 0;
-            if(data & 0b010) yPID.target = 0;
-            if(data & 0b100) zPID.target = 0;
+            if(data & 0b001) xPID.resethome();
+            if(data & 0b010) yPID.resethome();
+            if(data & 0b100) zPID.resethome();
             break;
-            }
+        }
         case 'X':
             xPID.target = parse_uint16_t(buffer, n);
             break;
@@ -165,9 +220,12 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
         case 'Z':
             zPID.target = parse_uint16_t(buffer, n);
             break;
-        case 'B': // TODO pause of 0 ms
-            pauseUntil = time + parse_uint32_t(buffer, n);
+        case 'P': {
+            uint32_t pause = parse_uint32_t(buffer, n);
+            pauseUntil = pause == 0 ? 0 : (time + parse_uint32_t(buffer, n));
+            working = false;
             break;
+        }
         default:
             writeHeader('E', 15);
             Serial.write("Unknown param ", 14);
