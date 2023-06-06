@@ -3,15 +3,8 @@ use dioxus::prelude::*;
 use std::net::SocketAddr;
 use axum::{self, extract::WebSocketUpgrade, Router, routing::get, response::Html};
 use super::get as nw_get;
-use cfg_if::cfg_if;
 
-cfg_if! {
-    if #[cfg(unix)] {
-        const HOSTNAME: &str = "raspiprint.local";
-    } else {
-        const HOSTNAME: &str = "localhost";
-    }
-}
+const HOSTNAME: &str = if cfg!(unix) { "raspiprint.local" } else { "localhost" };
 const PORT: u16 = 8080;
 const WILDCARD_IP: &str = "0.0.0.0";
 
