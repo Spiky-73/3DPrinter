@@ -1,3 +1,5 @@
+#pragma once
+
 #define writeHeader(type, length) Serial.write(1 + length); Serial.write(type)
 
 #ifdef DEBUG
@@ -11,3 +13,18 @@
 #else
 #define simulate(code)
 #endif
+
+#if !defined(SIMULATE) && defined(DEBUG)
+#define debugOnly(code) code
+#else
+#define debugOnly(code)
+#endif
+
+
+inline long time;
+inline long deltaTime;
+
+debug(
+    inline String info = "";
+    inline long logPosTime;
+)
