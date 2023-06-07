@@ -37,13 +37,16 @@ fn App(cx: Scope) -> Element {
                 div {
                     class: "btn_div",
                     button {
-                        onclick: |_| {nw_get().load_printer_gcode(gcode.as_str())},
+                        onclick: |_| {
+                            println!("File data sent.");
+                            nw_get().load_printer_gcode(gcode.as_str())
+                        },
                         "Submit!"
                     },
                 },
             },
             TitledBlock { title: "Monitoring",
-                strong { "Status {state:?}" }, br {},
+                strong { "Status {state.current():#?}" }, br {},
                 strong { "Temperature" }, br {},
                 strong { "Completion" }, br {},
             },

@@ -1,5 +1,7 @@
-use std::{cmp::min, str, time::Duration, thread, fs::File, io::Read};
+use std::{cmp::min, str, time::Duration, thread, fs::File, io::Read, sync::OnceLock};
 use tokio::time;
+use once_cell::sync::Lazy;
+
 
 use self::gcode::Command;
 mod gcode;
@@ -72,6 +74,7 @@ impl Printer {
     
     pub fn load_gcode(&mut self, code: &str) { // Not supported: M862.3, M862.1
         println!("Parsing gcode...");
+        self.state = State::Printing(PrintStatus { sent: 1, completed: 2, progress: 3, time_left: 4, silent_progress: 5, silent_time_left: 6 });
         self.commands.clear();
         let mut local: Vec<Box<dyn gcode::Command>> = Vec::new();
         
@@ -165,11 +168,11 @@ impl Printer {
                         wait = None;
                     }
                 }
-
+                
             }
         });
     }
-
+    
     fn send_next_command(&mut self){
         let State::Printing(ref mut status) = self.state else { unreachable!()};
         let data: &Vec<u8> = self.commands.get(status.sent).unwrap().0.data_arduino();
@@ -188,26 +191,23 @@ pub struct Printer {
 }
 
 pub fn get() -> &'static mut Printer {
-    unsafe {
-        if INSTANCE.is_none() {
-            INSTANCE = Some(Printer {
-                state: State::Idle,
-                commands: Vec::new(),
-                serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port"),
-                settings: Settings {
-                    x_coder: Encoder { resolution: 3, offset: 20 },
-                    y_coder: Encoder { resolution: 3, offset: 20 },
-                    z_coder: Encoder { resolution: 3, offset: 20 },
-                    abs_pos: true, abs_ext: false
-                }
-            });
-        }
-
-        INSTANCE.as_mut().unwrap()
-    }
+    unsafe { &mut *INSTANCE }
 }
 
-static mut INSTANCE: Option<Printer> = None;
+static mut INSTANCE: Lazy<Printer> = Lazy::new(|| {
+    println!("Printer initializing....................");
+    Printer {
+        state: State::Idle,
+        commands: Vec::new(),
+        serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port"),
+        settings: Settings {
+            x_coder: Encoder { resolution: 3, offset: 20 },
+            y_coder: Encoder { resolution: 3, offset: 20 },
+            z_coder: Encoder { resolution: 3, offset: 20 },
+            abs_pos: true, abs_ext: false
+        }
+    }
+});
 
 pub struct Settings {
     pub x_coder: Encoder,

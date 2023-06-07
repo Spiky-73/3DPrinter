@@ -1130,6 +1130,7 @@ dependencies = [
  "axum",
  "dioxus",
  "dioxus-liveview",
+ "once_cell",
  "serialport",
  "tokio",
 ]

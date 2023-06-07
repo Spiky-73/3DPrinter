@@ -1,6 +1,7 @@
 mod webui;
 
 use crate::printer::{self, State};
+use once_cell::sync::Lazy;
 
 impl Network<'_> {
 
@@ -30,16 +31,12 @@ pub struct Network<'a> {
 }
 
 pub fn get() -> &'static mut Network<'static> {
-    unsafe {
-        if INSTANCE.is_none() {
-            INSTANCE = Some(Network {
-                state_getter: &|| {printer::get().get_state_ref()},
-                gcode_setter: &|code: &str| {printer::get().load_gcode(code)}
-            })
-        }
-
-        INSTANCE.as_mut().unwrap()
-    }
+    unsafe { &mut *INSTANCE }
 }
 
-static mut INSTANCE: Option<Network> = None;
+static mut INSTANCE: Lazy<Network> = Lazy::new(|| {
+    Network {
+        state_getter: &|| printer::get().get_state_ref(),
+        gcode_setter: &|code: &str| printer::get().load_gcode(code)
+    }
+});
