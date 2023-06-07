@@ -7,7 +7,7 @@ pub struct M73 {
     silent: bool,
 }
 impl Command for M73 {
-    fn new(fields: &[Field], setting: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized {
+    fn new(fields: &[Field], _: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized {
         let mut progress: u8 = 0;
         let mut time: u16 = 0;
         let mut silent: bool = false;
@@ -30,7 +30,7 @@ impl Command for M73 {
         Ok(M73 { progress, time, silent})
     }
     fn scope(&self) -> u8 { scope::CONFIG | scope::PI }
-    fn edit_config(&self, settings: &mut Settings) {
+    fn edit_config(&self, _: &mut Settings) {
         if self.progress%20 != 0 {return;}
         if !self.silent { println!("{}% done", self.progress); }
     }
@@ -44,4 +44,13 @@ impl Command for M73 {
             println!("{}% done ({} min remaining)", self.progress, self.time);
         }
     }
+}
+
+pub struct M84 { data: Vec<u8> }
+impl Command for M84 {
+    fn new(_: &[Field], _: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized {
+        Ok(M84{data: vec![b'h']})
+    }
+    fn scope(&self) -> u8 { scope::ARDUINO }
+    fn data_arduino(&self) -> &Vec<u8> { &self.data }
 }

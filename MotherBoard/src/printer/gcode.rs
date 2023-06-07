@@ -63,13 +63,12 @@ pub fn parse(code: &str, setting: &Settings) -> Result<Box<dyn Command>, ParseGc
         "G4"=> Ok(Box::new(gcommands::G4::new(&params, setting)?)),
         "G28"=> Ok(Box::new(gcommands::G28::new(&params, setting)?)),
         "G92"=> Ok(Box::new(gcommands::G92::new(&params, setting)?)),
-        "G21" | "G80" | "G90" => Ok(Box::new(Void)),
         "M73" => Ok(Box::new(mcommands::M73::new(&params, setting)?)),
-        "M104" => Ok(Box::new(Void)),
-        "M109" => Ok(Box::new(Void)),
-        "M201" | "M203" | "M204" => Ok(Box::new(Void)),
-        "M900" => Ok(Box::new(Void)),
-        "M83" | "M84" | "M106" | "M107" | "M115" | "M140" | "M190" | "M862" | "M907" => Ok(Box::new(Void)),
+        "M84" => Ok(Box::new(mcommands::M84::new(&params, setting)?)),
+        "G90" | "M140" => Ok(Box::new(Void)), // simple bed
+        "M104" | "M109" | "M106" | "M107" | "M900"=> Ok(Box::new(Void)), // no extruder yet
+        "G21" | "G80" | "M83" | "M201" | "M203" | "M204" | "M190"=> Ok(Box::new(Void)), // no settings
+        "M115" | "M862" | "M907" | "M221" => Ok(Box::new(Void)), // dont know
         _ => Err(ParseGcodeError)
     };
 }

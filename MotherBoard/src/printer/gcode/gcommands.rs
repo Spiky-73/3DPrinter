@@ -1,9 +1,7 @@
 use super::super::Settings;
 use super::{Command, ParseGcodeError, Field, scope};
 
-pub struct G0 {
-    data: Vec<u8>
-}
+pub struct G0 { data: Vec<u8> }
 impl Command for G0 {
     fn new(fields: &[Field], setting: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized {
         let mut data: Vec<u8> = Vec::new();
@@ -33,9 +31,7 @@ impl Command for G0 {
     fn data_arduino(&self) -> &Vec<u8> { &self.data }
 }
 
-pub struct G4 {
-    data: Vec<u8>
-}
+pub struct G4 { data: Vec<u8> }
 impl Command for G4 {
     fn new(fields: &[Field], _: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized {
         let mut pause: u32 = 0;
@@ -58,9 +54,7 @@ impl Command for G4 {
     fn data_arduino(&self) -> &Vec<u8> { &self.data }
 }
 
-pub struct G28 {
-    data: Vec<u8>
-}
+pub struct G28 { data: Vec<u8> }
 impl Command for G28 {
     fn new(fields: &[Field], _: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized {
         let mut data: Vec<u8> = Vec::new();
@@ -84,9 +78,7 @@ impl Command for G28 {
     fn data_arduino(&self) -> &Vec<u8> { &self.data }
 }
 
-pub struct G92 {
-    data: Vec<u8>
-}
+pub struct G92 { data: Vec<u8> }
 impl Command for G92 {
     fn new(fields: &[Field], setting: &Settings) -> Result<Self, ParseGcodeError> where Self: Sized {
         let mut data: Vec<u8> = Vec::new();

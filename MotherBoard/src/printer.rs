@@ -1,4 +1,4 @@
-use std::{cmp::min, str, time::Duration, thread, fs::File, io::Read, sync::OnceLock};
+use std::{cmp::min, str, time::Duration, thread, fs::File, io::Read};
 use tokio::time;
 use once_cell::sync::Lazy;
 
@@ -74,7 +74,6 @@ impl Printer {
     
     pub fn load_gcode(&mut self, code: &str) { // Not supported: M862.3, M862.1
         println!("Parsing gcode...");
-        self.state = State::Printing(PrintStatus { sent: 1, completed: 2, progress: 3, time_left: 4, silent_progress: 5, silent_time_left: 6 });
         self.commands.clear();
         let mut local: Vec<Box<dyn gcode::Command>> = Vec::new();
         
@@ -201,9 +200,9 @@ static mut INSTANCE: Lazy<Printer> = Lazy::new(|| {
         commands: Vec::new(),
         serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port"),
         settings: Settings {
-            x_coder: Encoder { resolution: 3, offset: 20 },
-            y_coder: Encoder { resolution: 3, offset: 20 },
-            z_coder: Encoder { resolution: 3, offset: 20 },
+            x_coder: Encoder { resolution: 20, offset: 50 },
+            y_coder: Encoder { resolution: 20, offset: 50 },
+            z_coder: Encoder { resolution: 50, offset: 50 },
             abs_pos: true, abs_ext: false
         }
     }
