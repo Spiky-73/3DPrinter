@@ -7,12 +7,12 @@ public:
 
     void update(long delta);
 
-    void speed(float speed);
-    inline float speed() { return _speed; }
+    void speed(int16_t speed);
+    inline int16_t speed() { return _speed; }
 
-    void resethome();
+    void home();
 
-    inline bool atTarget() const { return homing == 0 && abs((int32_t)target - position()) <= 1; }
+    inline bool atTarget() const { return _homing == 0 && abs((int32_t)target - position()) <= 1; }
 
     void hardsetPosition(uint16_t position) {
         _position += position - target;
@@ -20,24 +20,23 @@ public:
     }
     inline const uint16_t position() const { return _position; }
 
-    int16_t delta;
-    uint16_t target;
+    uint8_t maxSpeed;
+    int64_t delta;
+    uint32_t target;
 
     float kp;
-    byte homing;
 
 private:
-    void PID();
+    void updateSpeed();
 
-    void home();
+    void nextHome();
+    
+    byte _homing;
 
     simulate(float _positionF);
-    uint16_t _position;
-    float _speed;
-
-    uint32_t _sleep;
+    uint32_t _position;
+    int16_t _speed;
 
     Encoder _encoder;
     uint8_t _direction, _pwm;
-
 };

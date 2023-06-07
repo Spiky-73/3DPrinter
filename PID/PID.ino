@@ -101,9 +101,9 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
                 Serial.write("Motor positions displayed periodicaly", 37);
             )
             byte data = buffer[n++];
-            if(data & 0b001) xPID.resethome();
-            if(data & 0b010) yPID.resethome();
-            if(data & 0b100) zPID.resethome();
+            if(data & 0b001) xPID.home();
+            if(data & 0b010) yPID.home();
+            if(data & 0b100) zPID.home();
             break;
         }
         case 'h':
