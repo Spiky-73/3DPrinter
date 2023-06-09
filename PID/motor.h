@@ -3,7 +3,7 @@
 #include "defines.h"
 class Motor {
 public:
-    Motor(uint8_t direction, uint8_t pwm, uint8_t interrupt, uint8_t encoder, float kp);
+    Motor(uint8_t direction, uint8_t pwm, uint8_t interrupt, uint8_t encoder, uint8_t slowSpeed, uint8_t fastSpeed, float kp);
 
     void update(long delta);
 
@@ -12,30 +12,32 @@ public:
 
     void home();
 
-    inline bool atTarget() const { return _homing == 0 && abs((int32_t)target - position()) <= 1; }
+    inline bool atTarget() const { return abs(target - position()) <= 1; }
 
     void hardsetPosition(uint16_t position) {
         _position += position - target;
         target = position;
     }
     inline const uint16_t position() const { return _position; }
+    int32_t deltaPosition;
 
     uint8_t maxSpeed;
-    int64_t delta;
-    uint32_t target;
+    int32_t target;
 
     float kp;
+    byte _homing;
 
 private:
     void updateSpeed();
 
-    void nextHome();
+    void updateHome();
     
-    byte _homing;
 
     simulate(float _positionF);
-    uint32_t _position;
-    int16_t _speed;
+    int32_t _position;
+    int16_t _speed, _slowSpeed, _fastSpeed;
+    unsigned long _wait;
+    unsigned long _timer;
 
     Encoder _encoder;
     uint8_t _direction, _pwm;

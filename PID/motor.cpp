@@ -1,12 +1,11 @@
 #include "motor.h"
 #include "defines.h"
 
-Motor::Motor(uint8_t direction, uint8_t pwm, uint8_t interrupt, uint8_t encoder, float kp)
-    : _position(0), target(0), _speed(0), maxSpeed(180),
+Motor::Motor(uint8_t direction, uint8_t pwm, uint8_t interrupt, uint8_t encoder, uint8_t slowSpeed, uint8_t fastSpeed, float kp)
+    : _position(0), target(0), _speed(0), _slowSpeed(slowSpeed), _fastSpeed(fastSpeed), maxSpeed(fastSpeed),
       kp(kp),
       _direction(direction), _pwm(pwm),
-      _encoder(interrupt, encoder)
-{
+      _encoder(interrupt, encoder) {
     pinMode(direction, OUTPUT);
     pinMode(pwm, OUTPUT);
     digitalWrite(direction, LOW);
@@ -22,33 +21,32 @@ void Motor::update(long deltaTime){
     uint16_t npos = _positionF;
 #endif
 #else
-    uint16_t npos = _encoder.read();
+    int32_t npos = _encoder.read();
 #endif
-    delta = npos - _position;
-    _position = npos;
+    deltaPosition = npos - _position;
+    _position += deltaPosition;
     updateSpeed();
-    if(_homing != 0 && (delta == 0 || atTarget())) nextHome();
+    if(_homing != 0) updateHome();
 }
 
 void Motor::speed(int16_t speed) {
     _speed = speed = constrain(speed, -maxSpeed, maxSpeed);
-
     analogWrite(_pwm, abs(_speed));
     digitalWrite(_direction, (_speed > 0));
 }
 
 void Motor::home() {
-    _homing = 4;
-    nextHome();
+    _homing = 1;
+    updateHome();
 }
 
 void Motor::updateSpeed(){
-    int16_t error = target - _position;
+    int32_t error = target - _position;
     float command = kp * error;
-    speed(command);
+    speed(constrain(command, -255, 255));
 }
 
-void Motor::nextHome() {
+void Motor::updateHome() {
 #if defined(SIMULATE) && defined(DEBUG)
     _encoder.readAndReset();
     homing = 0;
@@ -57,30 +55,64 @@ void Motor::nextHome() {
     return;
 #else
     switch (_homing) {
-    case 4: { // fast left
-        _encoder.write((1 << 16) - 1);
-        maxSpeed = 180;
+    case 1: { // fast left
+        _encoder.write((1 << 15) - 1);
+        maxSpeed = _fastSpeed;
         target = 0;
+        _timer = time;
+        _homing++;
+        info += "Fast left";
+        debug(logTime = 0);
         break;
     }
+    case 2: // delay
+        if(time >= _timer+250){
+            _homing++;
+            _timer = time;
+        }
+        break;
     case 3: { // target 200
-        _encoder.write(0);
-        target = 200;
+        if(deltaPosition != 0) _timer = time;
+        if(time > _timer + 250){
+            _encoder.write(0);
+            target = 1000;
+            maxSpeed = _fastSpeed;
+            info += "Right";
+            debug(logTime = 0);
+            _homing++;
+        }
         break;
     }
-    case 2: { // slow 0
-        _encoder.write((1 << 16) - 1);
-        target = 0;
-        maxSpeed = 120;
+    case 4: { // slow 0
+        if(atTarget()){
+            _encoder.write((1 << 15) - 1);
+            target = 0;
+            maxSpeed = _slowSpeed;
+            _timer = time;
+            _homing++;
+            info += "Slow left";
+            debug(logTime = 0);
+        }
         break;
     }
-    case 1:  { // done
-        _encoder.readAndReset();
-        maxSpeed = 180;
+    case 5:
+        if(time >= _timer+250){
+            _homing++;
+            _timer = time;
+        }
+        break;
+    case 6: { // target 200
+        if(deltaPosition != 0) _timer = time;
+        if(time > _timer + 250){
+            _encoder.write(0);
+            target = 0;
+            maxSpeed = _slowSpeed;
+            _homing = 0;
+            info += "Done";
+            debug(logTime = 0);
+        }
         break;
     }
     }
-    debug(logPosTime = 0);
-    _homing--;
 #endif
 }

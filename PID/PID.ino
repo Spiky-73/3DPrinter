@@ -2,12 +2,12 @@
 #include "defines.h"
 #include "motor.h"
 
-bool idle, pids;
+bool idle = true, pids = false;
 unsigned long pauseUntil = 0;
 debug(long idleStart = 0);
 
-
-Motor xPID(12, 3, 2, 5, -1000000), yPID(0, 0, 0, 0, 0.2f), zPID(0, 0, 0, 0, 0.2f);
+// X: RED+, PURPLE inter / Y: RED+, GREEN inter
+Motor xPID(12, 3, 2, 5, 255, 255, -1000), yPID(13, 11, 18, 20, 180, 220, -1000), zPID(0, 0, 0, 0, 0, 0, 0.2f);
 
 // TODO change SERIAL_RX_BUFFER_SIZE
 uint8_t bytesToRead = 0;
@@ -28,6 +28,7 @@ void loop() {
             writeHeader('D', info.length());
             Serial.write(info.c_str(), info.length());
             info = "";
+            logTime = time + 200;
         }
     )
 }
@@ -42,22 +43,21 @@ void updatePIDs(){
     if (!pids) return;
     xPID.update(deltaTime);
     yPID.update(deltaTime);
-    zPID.update(deltaTime);
+    // zPID.update(deltaTime);
     debug(
-        if (time >= logPosTime) {
-            info += "X" + String(xPID.position()) + '>' + String(xPID.target);
+        if (time >= logTime) {
+            info += " X" + String(xPID.position()) + '>' + String(xPID.target) + " H" + String(xPID._homing) + " S" + String(xPID.speed());
             info += " Y" + String(yPID.position()) + '>' + String(yPID.target);
-            info += " Z" + String(zPID.position()) + '>' + String(zPID.target) + " ";
-            logPosTime = time + 500;
-        }
-    )
+            // info += " Z" + String(zPID.position()) + '>' + String(zPID.target) + " ";
+        })
 }
 
 void updateReception(){
-    if (Serial.available() < bytesToRead) return;
+    int available = Serial.available();
+    if (available == 0 || available < bytesToRead) return;
     if (bytesToRead == 0) {
         bytesToRead = Serial.read();
-        updateIntruction(); // Tries to read data immediatly
+        updateReception(); // Tries to read data immediatly
     } else if (instructionSize == 0) {
         instructionSize = bytesToRead;
         Serial.readBytes(instruction, instructionSize);
@@ -67,7 +67,7 @@ void updateReception(){
 
 void updateIntruction(){
     if (time < pauseUntil) return;
-    if (!xPID.atTarget() || !yPID.atTarget() || !zPID.atTarget()) return;
+    if (!xPID.atTarget() || !yPID.atTarget() /* || !zPID.atTarget() */) return;
 
     if(!idle){
         idle = true;
@@ -103,7 +103,7 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
             byte data = buffer[n++];
             if(data & 0b001) xPID.home();
             if(data & 0b010) yPID.home();
-            if(data & 0b100) zPID.home();
+            // if(data & 0b100) zPID.home();
             break;
         }
         case 'h':
@@ -119,11 +119,12 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
             yPID.target = parse_uint16_t(buffer, n);
             break;
         case 'Z':
-            zPID.target = parse_uint16_t(buffer, n);
+            /* zPID.target = */ parse_uint16_t(buffer, n);
             break;
         case 'P': {
-            uint32_t pause = parse_uint32_t(buffer, n);
-            pauseUntil = time + parse_uint32_t(buffer, n);
+            // uint32_t pause = parse_uint32_t(buffer, n);
+            pauseUntil = time + parse_uint32_t(buffer, n);;
+            info += "T" + String(time) + ">" + String(pauseUntil);
             break;
         }
         default:

@@ -26,5 +26,5 @@ inline long deltaTime;
 
 debug(
     inline String info = "";
-    inline long logPosTime;
+    inline long logTime;
 )

@@ -7,7 +7,7 @@ use self::gcode::Command;
 mod gcode;
 
 pub const BUFFERED_INSTRUCTIONS: usize = 4;
-const PORT: &str = if cfg!(unix) { "/dev/serial0" } else if cfg!(windows) { "COM10" } else { "Unimplemented" };
+const PORT: &str = if cfg!(unix) { "/dev/serial0" } else if cfg!(windows) { "COM4" } else { "Unimplemented" };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum State {
@@ -202,7 +202,7 @@ static mut INSTANCE: Lazy<Printer> = Lazy::new(|| {
         settings: Settings {
             x_coder: Encoder { resolution: 20, offset: 50 },
             y_coder: Encoder { resolution: 20, offset: 50 },
-            z_coder: Encoder { resolution: 50, offset: 50 },
+            z_coder: Encoder { resolution: 20, offset: 50 },
             abs_pos: true, abs_ext: false
         }
     }

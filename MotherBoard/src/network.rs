@@ -21,6 +21,7 @@ impl Network<'_> {
         //     - print start / stop / pause
         //     - ...
         webui::launch().await;
+        print!("ola");
     }
     
 }
