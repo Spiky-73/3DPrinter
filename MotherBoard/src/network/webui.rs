@@ -2,7 +2,7 @@
 use dioxus::prelude::*;
 use std::net::SocketAddr;
 use axum::{self, extract::WebSocketUpgrade, Router, routing::get, response::Html};
-use super::get as nw_get;
+use crate::printer;
 
 const HOSTNAME: &str = if cfg!(unix) { "raspiprint.local" } else { "localhost" };
 const PORT: u16 = 8080;
@@ -11,7 +11,7 @@ const WILDCARD_IP: &str = "0.0.0.0";
 
 fn App(cx: Scope) -> Element {
     let gcode = use_state(cx, || String::new());
-    let state = use_state(cx, || nw_get().get_printer_state_ref());
+    // let state = use_state(cx, || nw_get().get_printer_state_ref());
     
     cx.render(rsx! {
         PageRoot {
@@ -39,21 +39,26 @@ fn App(cx: Scope) -> Element {
                     button {
                         onclick: |_| {
                             println!("File data sent.");
-                            nw_get().load_printer_gcode(gcode.as_str())
+                            printer::get().load_gcode(gcode.as_str())
                         },
                         "Submit!"
                     },
                 },
             },
-            TitledBlock { title: "Monitoring",
-                strong { "Status {state.current():#?}" }, br {},
-                strong { "Temperature" }, br {},
-                strong { "Completion" }, br {},
-            },
+            // TitledBlock { title: "Monitoring",
+            //     strong { "Status {state.current():#?}" }, br {},
+            //     strong { "Temperature" }, br {},
+            //     strong { "Completion" }, br {},
+            // },
             TitledBlock { title: "Controls",
-                button {"Start"}, br {},
-                button {"Pause"}, br {},
-                button {"Stop"}, br {},
+                button {
+                    onclick: |_| printer::get().print(),
+                    "Start"
+                }, br {},
+                button {
+                    onclick: |_| printer::get().cancel_print(),
+                    "Stop"
+                }, br {},
             },
         }
     })
