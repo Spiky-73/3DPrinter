@@ -37,7 +37,7 @@ impl Printer {
             return;
         }
         
-        self.home().await;
+        // self.home().await;
         println!("Printer ready !")
     }
 
@@ -119,6 +119,9 @@ impl Printer {
     pub fn cancel_print(&mut self){
         self.commands.clear();
         self.state = State::Idle;
+        _ = self.serial.write_all(&[1]);
+        _ = self.serial.write_all(&[b'h']);
+
     }
 
 
@@ -200,9 +203,9 @@ static mut INSTANCE: Lazy<Printer> = Lazy::new(|| {
         commands: Vec::new(),
         serial: serialport::new(PORT, 115_200).timeout(Duration::from_millis(10)).open().expect("Failed to open port"),
         settings: Settings {
-            x_coder: Encoder { resolution: 20, offset: 50 },
-            y_coder: Encoder { resolution: 20, offset: 50 },
-            z_coder: Encoder { resolution: 20, offset: 50 },
+            x_coder: Encoder { resolution: 20, offset: 130 },
+            y_coder: Encoder { resolution: 20, offset: 100 },
+            z_coder: Encoder { resolution: 70, offset: 50 },
             abs_pos: true, abs_ext: false
         }
     }

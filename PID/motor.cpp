@@ -101,7 +101,7 @@ void Motor::updateHome() {
             _timer = time;
         }
         break;
-    case 6: { // target 200
+    case 6: {
         if(deltaPosition != 0) _timer = time;
         if(time > _timer + 250){
             _encoder.write(0);

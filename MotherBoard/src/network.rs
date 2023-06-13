@@ -1,7 +1,9 @@
 mod webui;
 
+use futures::executor::block_on;
 // use crate::printer::{self, State};
 use once_cell::sync::Lazy;
+use tokio::task::block_in_place;
 use std::thread;
 
 impl Network {
@@ -14,16 +16,19 @@ impl Network {
     //     (self.gcode_setter)(code)
     // }
 
-    pub async fn initialize(&mut self) {
+    pub async fn launch(&mut self) {
         // TODO impl
         // start wifi server
         // register packet handlers
         //     - gcode reception
         //     - print start / stop / pause
         //     - ...
-        thread::spawn(|| async {
-            webui::launch().await;
-        });
+        // println!("Hello");
+        // _ = tokio::task::spawn_blocking(webui::launch);
+        //     || async {
+        //     println!("World");
+        // });
+        webui::launch().await
     }
     
 }

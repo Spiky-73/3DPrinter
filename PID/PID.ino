@@ -6,8 +6,8 @@ bool idle = true, pids = false;
 unsigned long pauseUntil = 0;
 debug(long idleStart = 0);
 
-// X: RED+, PURPLE inter / Y: RED+, GREEN inter
-Motor xPID(12, 3, 2, 5, 255, 255, -1000), yPID(13, 11, 18, 20, 180, 220, -1000), zPID(0, 0, 0, 0, 0, 0, 0.2f);
+// X: RED+, ORANGE inter / Y: RED+, invert +- GREEN inter / Z: RED+, RED STRIPES inter
+Motor xPID(12, 3, 2, 5, 255, 255, -200), yPID(13, 11, 18, 20, 170, 200, -200), zPID(12, 3, 2, 5, 200, 200, 5);
 
 // TODO change SERIAL_RX_BUFFER_SIZE
 uint8_t bytesToRead = 0;
@@ -46,9 +46,9 @@ void updatePIDs(){
     // zPID.update(deltaTime);
     debug(
         if (time >= logTime) {
-            info += " X" + String(xPID.position()) + '>' + String(xPID.target) + " H" + String(xPID._homing) + " S" + String(xPID.speed());
+            info += " X" + String(xPID.position()) + '>' + String(xPID.target);
             info += " Y" + String(yPID.position()) + '>' + String(yPID.target);
-            // info += " Z" + String(zPID.position()) + '>' + String(zPID.target) + " ";
+            // info += " Z" + String(zPID.position()) + '>' + String(zPID.target) + " H" + String(zPID._homing);
         })
 }
 
@@ -67,7 +67,7 @@ void updateReception(){
 
 void updateIntruction(){
     if (time < pauseUntil) return;
-    if (!xPID.atTarget() || !yPID.atTarget() /* || !zPID.atTarget() */) return;
+    if (!xPID.atTarget() || !yPID.atTarget() || !zPID.atTarget()) return;
 
     if(!idle){
         idle = true;
@@ -110,7 +110,7 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
             pids = false;
             xPID.speed(0);
             yPID.speed(0);
-            zPID.speed(0);
+            // zPID.speed(0);
             break;
         case 'X':
             xPID.target = parse_uint16_t(buffer, n);
@@ -119,7 +119,7 @@ void processInstruction(const byte* const buffer, uint8_t lenght){
             yPID.target = parse_uint16_t(buffer, n);
             break;
         case 'Z':
-            /* zPID.target = */ parse_uint16_t(buffer, n);
+            /* zPID.target = */  parse_uint16_t(buffer, n);
             break;
         case 'P': {
             // uint32_t pause = parse_uint32_t(buffer, n);

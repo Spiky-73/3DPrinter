@@ -10,6 +10,7 @@ long stopTime, time, deltaTime;
 int position, deltaPos;
 String info = "";
 
+#define MOTOR
 
 void setup() {
     Serial.begin(9600);

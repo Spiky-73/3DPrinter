@@ -14,7 +14,7 @@ impl Command for G0 {
                     }
                     'Y' => {
                         data.push(b'Y');
-                        data.extend(setting.z_coder.postion(value as i16).to_le_bytes());
+                        data.extend(setting.y_coder.postion(value as i16).to_le_bytes());
                     }
                     'Z' => {
                         data.push(b'Z');
@@ -91,7 +91,7 @@ impl Command for G92 {
                     }
                     'Y' => {
                         data.push(b'y');
-                        data.extend(setting.z_coder.postion(value as i16).to_le_bytes());
+                        data.extend(setting.y_coder.postion(value as i16).to_le_bytes());
                     }
                     'Z' => {
                         data.push(b'z');
