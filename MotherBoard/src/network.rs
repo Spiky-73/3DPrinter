@@ -2,6 +2,7 @@ mod webui;
 
 // use crate::printer::{self, State};
 use once_cell::sync::Lazy;
+use std::thread;
 
 impl Network {
 
@@ -20,7 +21,9 @@ impl Network {
         //     - gcode reception
         //     - print start / stop / pause
         //     - ...
-        webui::launch().await;
+        thread::spawn(|| async {
+            webui::launch().await;
+        });
     }
     
 }
